@@ -1,0 +1,639 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Shadowing Practice v2 (Sentence-by-sentence)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 16px; line-height: 1.35; }
+    .wrap { max-width: 980px; margin: 0 auto; }
+    .card { border: 1px solid #ddd; border-radius: 14px; padding: 14px; box-shadow: 0 1px 0 rgba(0,0,0,0.03); }
+    textarea { width: 100%; min-height: 120px; padding: 10px; border-radius: 12px; border: 1px solid #ccc; font-size: 16px; }
+    button, select, input[type="file"] { font-size: 15px; }
+    button { padding: 10px 12px; border-radius: 12px; border: 1px solid #ccc; background: #f7f7f7; cursor: pointer; }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
+    .row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; align-items: center; }
+    .row > * { flex: 0 0 auto; }
+    .small { color: #555; font-size: 14px; }
+    .status { margin-top: 10px; font-weight: 700; }
+    .pill { display: inline-block; padding: 3px 8px; border-radius: 999px; border: 1px solid #ddd; font-size: 13px; margin-left: 6px;}
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+    .grid { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 12px; margin-top: 12px; }
+    @media (max-width: 880px) { .grid { grid-template-columns: 1fr; } }
+    .panel { border: 1px solid #e3e3e3; border-radius: 14px; padding: 12px; }
+    .sentenceBox { border: 1px solid #ddd; border-radius: 14px; padding: 14px; min-height: 78px; font-size: 20px; }
+    .meta { display:flex; justify-content: space-between; align-items:center; gap:10px; margin-top: 10px; }
+    .counter { font-weight: 700; }
+    .list { max-height: 310px; overflow:auto; border: 1px solid #eee; border-radius: 12px; padding: 6px; }
+    .list button { width: 100%; text-align: left; padding: 10px; margin: 4px 0; background: #fff; }
+    .list button.active { background: #f2f2f2; border-color: #bbb; }
+    .controlsGroup { display:flex; flex-wrap: wrap; gap:10px; }
+    .kbd { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; border: 1px solid #ddd; border-bottom-width: 2px; padding: 2px 6px; border-radius: 6px; background: #fafafa;}
+    .divider { height: 1px; background: #eee; margin: 12px 0; }
+    label.inline { display:flex; align-items:center; gap:8px; }
+    input[type="range"] { vertical-align: middle; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h2 style="margin:0 0 6px 0;">Shadowing Practice v2</h2>
+    <div class="small">
+      Paste a text or upload a <span class="mono">.txt</span>. The app will split it into sentences and practice them one by one.
+      <span class="pill">Edge/Chrome recommended</span>
+    </div>
+
+    <div class="grid">
+      <div class="panel">
+        <h3 style="margin:0 0 8px 0;">1) Input text</h3>
+        <textarea id="text">
+When the sunlight strikes raindrops in the air, they act like a prism and form a rainbow.
+The rainbow is a division of white light into many beautiful colors.
+These take the shape of a long round arch.
+        </textarea>
+
+        <div class="row">
+          <button id="btnLoad">📌 Load sentences</button>
+
+          <label class="inline small">
+            Upload .txt:
+            <input id="file" type="file" accept=".txt,text/plain" />
+          </label>
+
+          <button id="btnClear" title="Clear text box">🧹 Clear</button>
+        </div>
+
+        <div class="small" style="margin-top:10px;">
+          Tips: Use short paragraphs. If the splitter makes mistakes (e.g., “Dr.”), you can edit the text (add line breaks) and reload.
+        </div>
+
+        <div class="divider"></div>
+
+        <h3 style="margin:0 0 8px 0;">2) Voice settings</h3>
+        <div class="row">
+          <label class="small">
+            Accent:
+            <select id="accent">
+              <option value="en-US">American (en-US)</option>
+              <option value="en-GB">British (en-GB)</option>
+              <option value="en-AU">Australian (en-AU)</option>
+              <option value="en-CA">Canadian (en-CA)</option>
+              <option value="en-IE">Irish (en-IE)</option>
+              <option value="any">Any English voice</option>
+            </select>
+          </label>
+
+          <label class="small">
+            Voice:
+            <select id="voiceSelect"></select>
+          </label>
+        </div>
+
+        <div class="row">
+          <label class="small">
+            Rate:
+            <input id="rate" type="range" min="0.7" max="1.2" step="0.05" value="1.0" />
+            <span id="rateVal" class="mono">1.00</span>
+          </label>
+
+          <label class="small">
+            Pitch:
+            <input id="pitch" type="range" min="0.7" max="1.2" step="0.05" value="1.0" />
+            <span id="pitchVal" class="mono">1.00</span>
+          </label>
+        </div>
+
+        <div class="divider"></div>
+
+        <h3 style="margin:0 0 8px 0;">3) Optional: transcript (rough)</h3>
+        <div class="small">Speech recognition is approximate and mainly supported in Edge/Chrome.</div>
+        <div class="row">
+          <button id="btnListen">🎙️ Start recognition</button>
+          <button id="btnListenStop" disabled>🛑 Stop recognition</button>
+        </div>
+        <div class="small" style="margin-top:8px;">Transcript:</div>
+        <div id="transcript" class="mono" style="border:1px solid #ddd;border-radius:12px;padding:10px;min-height:48px;"></div>
+      </div>
+
+      <div class="panel">
+        <h3 style="margin:0 0 8px 0;">Practice</h3>
+
+        <div class="meta">
+          <div class="counter" id="counter">Sentence 0 / 0</div>
+          <div class="small">Shortcuts: <span class="kbd">←</span> <span class="kbd">→</span></div>
+        </div>
+
+        <div id="currentSentence" class="sentenceBox" style="margin-top:10px;">
+          Load sentences to begin.
+        </div>
+
+        <div class="row" style="margin-top:10px;">
+          <div class="controlsGroup">
+            <button id="btnPrev" disabled>⬅ Previous</button>
+            <button id="btnNext" disabled>Next ➡</button>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="row">
+          <button id="btnSpeak" disabled>🔊 Speak sentence</button>
+
+          <button id="btnRecord" disabled>⏺️ Record</button>
+          <button id="btnStop" disabled>⏹️ Stop</button>
+          <button id="btnPlay" disabled>▶️ Play my recording</button>
+          <button id="btnDownload" disabled>⬇️ Download recording</button>
+        </div>
+
+        <div class="row">
+          <label class="small">
+            Auto-record duration (sec):
+            <input id="recSeconds" type="number" min="2" max="30" step="1" value="6" style="width:70px; padding:8px; border-radius:10px; border:1px solid #ccc;" />
+          </label>
+        </div>
+
+        <div class="row">
+          <button id="btnLoop" disabled>🔁 Shadowing loop (play→record→play→next)</button>
+          <button id="btnLoopStop" disabled>⛔ Stop loop</button>
+        </div>
+
+        <div class="status" id="status">Status: ready</div>
+
+        <div class="divider"></div>
+
+        <h4 style="margin:0 0 8px 0;">Sentence list</h4>
+        <div id="list" class="list"></div>
+
+        <div class="small" style="margin-top:10px;">
+          Pro tip: Start with <b>Rate 0.85</b> then move back to <b>1.00</b>.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+
+  // Elements
+  const textEl = $("text");
+  const btnLoad = $("btnLoad");
+  const btnClear = $("btnClear");
+  const fileEl = $("file");
+
+  const accentEl = $("accent");
+  const voiceSelect = $("voiceSelect");
+  const rate = $("rate"), pitch = $("pitch");
+  const rateVal = $("rateVal"), pitchVal = $("pitchVal");
+
+  const counterEl = $("counter");
+  const currentSentenceEl = $("currentSentence");
+  const listEl = $("list");
+
+  const btnPrev = $("btnPrev");
+  const btnNext = $("btnNext");
+
+  const btnSpeak = $("btnSpeak");
+  const btnRecord = $("btnRecord");
+  const btnStop = $("btnStop");
+  const btnPlay = $("btnPlay");
+  const btnDownload = $("btnDownload");
+
+  const recSecondsEl = $("recSeconds");
+
+  const btnLoop = $("btnLoop");
+  const btnLoopStop = $("btnLoopStop");
+
+  const statusEl = $("status");
+
+  const transcriptEl = $("transcript");
+  const btnListen = $("btnListen");
+  const btnListenStop = $("btnListenStop");
+
+  // State
+  let sentences = [];
+  let idx = 0;
+
+  // Recording state
+  let mediaRecorder = null;
+  let chunks = [];
+  let recordedBlob = null;
+  let recordedUrl = null;
+  let audio = new Audio();
+
+  // Loop state
+  let loopRunning = false;
+  let loopAbort = false;
+
+  // UI helpers
+  const setStatus = (s) => statusEl.textContent = "Status: " + s;
+
+  rate.addEventListener("input", () => rateVal.textContent = (+rate.value).toFixed(2));
+  pitch.addEventListener("input", () => pitchVal.textContent = (+pitch.value).toFixed(2));
+
+  function enablePracticeControls(on) {
+    btnSpeak.disabled = !on;
+    btnRecord.disabled = !on;
+    btnPrev.disabled = !on || idx <= 0;
+    btnNext.disabled = !on || idx >= sentences.length - 1;
+    btnLoop.disabled = !on;
+  }
+
+  function updateCounter() {
+    counterEl.textContent = `Sentence ${sentences.length ? (idx + 1) : 0} / ${sentences.length}`;
+  }
+
+  function showSentence() {
+    if (!sentences.length) {
+      currentSentenceEl.textContent = "Load sentences to begin.";
+      updateCounter();
+      enablePracticeControls(false);
+      listEl.innerHTML = "";
+      return;
+    }
+    currentSentenceEl.textContent = sentences[idx];
+    updateCounter();
+    enablePracticeControls(true);
+    btnPrev.disabled = idx <= 0;
+    btnNext.disabled = idx >= sentences.length - 1;
+    renderList();
+    // Reset recording buttons (sentence changed)
+    btnPlay.disabled = true;
+    btnDownload.disabled = true;
+    recordedBlob = null;
+    if (recordedUrl) URL.revokeObjectURL(recordedUrl);
+    recordedUrl = null;
+  }
+
+  function renderList() {
+    listEl.innerHTML = "";
+    sentences.forEach((s, i) => {
+      const b = document.createElement("button");
+      b.textContent = `${i + 1}. ${s}`;
+      b.className = i === idx ? "active" : "";
+      b.addEventListener("click", () => { idx = i; showSentence(); });
+      listEl.appendChild(b);
+    });
+  }
+
+  // Sentence splitting (simple but practical)
+  function splitIntoSentences(text) {
+    // Normalize whitespace
+    let t = text.replace(/\r\n/g, "\n").replace(/[ \t]+/g, " ").trim();
+    if (!t) return [];
+
+    // Protect some common abbreviations (basic list)
+    const abbr = ["Mr.", "Mrs.", "Ms.", "Dr.", "Prof.", "Sr.", "Jr.", "St.", "vs.", "e.g.", "i.e."];
+    const placeholders = new Map();
+    abbr.forEach((a, k) => {
+      const ph = `__ABBR${k}__`;
+      placeholders.set(ph, a);
+      t = t.replaceAll(a, ph);
+    });
+
+    // Protect decimals like 3.14 (replace the dot)
+    t = t.replace(/(\d)\.(\d)/g, "$1__DOT__$2");
+
+    // Split on punctuation enders followed by space/newline
+    let parts = t
+      .split(/(?<=[.!?])\s+(?=[A-Z0-9"“‘(\[])/g) // typical sentence boundary
+      .map(s => s.trim())
+      .filter(Boolean);
+
+    // Also split on line breaks if user uses them as sentence separators
+    parts = parts.flatMap(p => p.split(/\n+/g).map(x => x.trim()).filter(Boolean));
+
+    // Restore placeholders
+    parts = parts.map(p => {
+      p = p.replaceAll("__DOT__", ".");
+      for (const [ph, a] of placeholders.entries()) p = p.replaceAll(ph, a);
+      return p;
+    });
+
+    return parts;
+  }
+
+  // Keyboard nav
+  document.addEventListener("keydown", (e) => {
+    if (!sentences.length) return;
+    if (e.key === "ArrowLeft") { if (idx > 0) { idx--; showSentence(); } }
+    if (e.key === "ArrowRight") { if (idx < sentences.length - 1) { idx++; showSentence(); } }
+  });
+
+  btnPrev.addEventListener("click", () => { if (idx > 0) { idx--; showSentence(); } });
+  btnNext.addEventListener("click", () => { if (idx < sentences.length - 1) { idx++; showSentence(); } });
+
+  // Load sentences
+  btnLoad.addEventListener("click", () => {
+    sentences = splitIntoSentences(textEl.value);
+    idx = 0;
+    showSentence();
+    setStatus(sentences.length ? "sentences loaded" : "no text found");
+  });
+
+  btnClear.addEventListener("click", () => { textEl.value = ""; });
+
+  // File upload
+  fileEl.addEventListener("change", async () => {
+    const f = fileEl.files && fileEl.files[0];
+    if (!f) return;
+    const txt = await f.text();
+    textEl.value = txt;
+    sentences = splitIntoSentences(txt);
+    idx = 0;
+    showSentence();
+    setStatus(`loaded file: ${f.name}`);
+    fileEl.value = "";
+  });
+
+  // ---------- TTS ----------
+  function getPreferredVoiceList() {
+    const all = speechSynthesis.getVoices();
+    const accent = accentEl.value;
+
+    const isEnglish = v => (v.lang || "").toLowerCase().startsWith("en");
+    const english = all.filter(isEnglish);
+
+    if (accent === "any") return english;
+
+    const preferred = english.filter(v => (v.lang || "").toLowerCase() === accent.toLowerCase());
+    return preferred.length ? preferred : english;
+  }
+
+  function loadVoices() {
+    const voices = getPreferredVoiceList();
+    voiceSelect.innerHTML = "";
+    voices.forEach((v, i) => {
+      const opt = document.createElement("option");
+      opt.value = String(i);
+      opt.textContent = `${v.name} (${v.lang})`;
+      voiceSelect.appendChild(opt);
+    });
+    if (!voiceSelect.options.length) {
+      const opt = document.createElement("option");
+      opt.value = "-1";
+      opt.textContent = "No voices found (TTS may not work here)";
+      voiceSelect.appendChild(opt);
+    }
+  }
+
+  loadVoices();
+  speechSynthesis.onvoiceschanged = loadVoices;
+  accentEl.addEventListener("change", loadVoices);
+
+  async function speakCurrent() {
+    const txt = sentences.length ? sentences[idx] : textEl.value.trim();
+    if (!txt) return;
+
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(txt);
+
+    const voices = getPreferredVoiceList();
+    const sel = +voiceSelect.value;
+    if (voices.length && sel >= 0 && sel < voices.length) u.voice = voices[sel];
+
+    u.rate = +rate.value;
+    u.pitch = +pitch.value;
+
+    return new Promise((resolve, reject) => {
+      u.onstart = () => setStatus("speaking…");
+      u.onend = () => { setStatus("ready"); resolve(); };
+      u.onerror = () => { setStatus("TTS error"); reject(new Error("TTS error")); };
+      speechSynthesis.speak(u);
+    });
+  }
+
+  btnSpeak.addEventListener("click", () => speakCurrent().catch(()=>{}));
+
+  // ---------- Recording ----------
+  async function startRecording() {
+    recordedBlob = null;
+    if (recordedUrl) URL.revokeObjectURL(recordedUrl);
+    recordedUrl = null;
+    btnPlay.disabled = true;
+    btnDownload.disabled = true;
+
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+    const options = {};
+    if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) options.mimeType = "audio/webm;codecs=opus";
+    else if (MediaRecorder.isTypeSupported("audio/webm")) options.mimeType = "audio/webm";
+    else if (MediaRecorder.isTypeSupported("audio/mp4")) options.mimeType = "audio/mp4";
+
+    mediaRecorder = new MediaRecorder(stream, options);
+    chunks = [];
+
+    mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+
+    mediaRecorder.onstart = () => setStatus("recording…");
+
+    mediaRecorder.onstop = () => {
+      setStatus("recorded");
+      recordedBlob = new Blob(chunks, { type: mediaRecorder.mimeType || "audio/webm" });
+      recordedUrl = URL.createObjectURL(recordedBlob);
+      audio.src = recordedUrl;
+      btnPlay.disabled = false;
+      btnDownload.disabled = false;
+      stream.getTracks().forEach(t => t.stop());
+    };
+
+    mediaRecorder.start();
+  }
+
+  function stopRecording() {
+    if (mediaRecorder && mediaRecorder.state !== "inactive") {
+      mediaRecorder.stop();
+    }
+  }
+
+  btnRecord.addEventListener("click", async () => {
+    try {
+      btnRecord.disabled = true;
+      btnStop.disabled = false;
+      await startRecording();
+    } catch (err) {
+      console.error(err);
+      setStatus("mic permission denied or not available");
+      btnRecord.disabled = false;
+      btnStop.disabled = true;
+    }
+  });
+
+  btnStop.addEventListener("click", () => {
+    stopRecording();
+    btnStop.disabled = true;
+    btnRecord.disabled = false;
+  });
+
+  btnPlay.addEventListener("click", async () => {
+    if (!recordedUrl) return;
+    setStatus("playing your recording…");
+    audio.currentTime = 0;
+    await audio.play();
+  });
+
+  audio.addEventListener("ended", () => setStatus("ready"));
+
+  btnDownload.addEventListener("click", () => {
+    if (!recordedBlob) return;
+    const a = document.createElement("a");
+    a.href = recordedUrl;
+    a.download = "shadowing_recording.webm";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  });
+
+  // ---------- Shadowing loop: play model → pause → record (N sec) → stop → play recording → next ----------
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+  async function autoRecordFor(seconds) {
+    await startRecording();
+    await sleep(Math.max(500, seconds * 1000));
+    stopRecording();
+    // Wait until MediaRecorder fires onstop and blob is ready
+    const waitReady = async () => {
+      for (let i = 0; i < 50; i++) {
+        if (recordedUrl) return;
+        await sleep(100);
+      }
+    };
+    await waitReady();
+  }
+
+  async function playRecording() {
+    if (!recordedUrl) return;
+    audio.currentTime = 0;
+    await audio.play();
+    // wait end
+    await new Promise(resolve => {
+      const handler = () => { audio.removeEventListener("ended", handler); resolve(); };
+      audio.addEventListener("ended", handler);
+    });
+  }
+
+  async function runLoop() {
+    loopRunning = true;
+    loopAbort = false;
+    btnLoop.disabled = true;
+    btnLoopStop.disabled = false;
+    btnSpeak.disabled = true;
+    btnRecord.disabled = true;
+    btnPrev.disabled = true;
+    btnNext.disabled = true;
+
+    try {
+      while (!loopAbort && sentences.length) {
+        // 1) Speak model
+        await speakCurrent();
+        if (loopAbort) break;
+
+        // 2) short pause
+        await sleep(900);
+        if (loopAbort) break;
+
+        // 3) record
+        setStatus("loop: recording…");
+        const sec = Math.min(30, Math.max(2, parseInt(recSecondsEl.value || "6", 10)));
+        await autoRecordFor(sec);
+        if (loopAbort) break;
+
+        // 4) playback
+        setStatus("loop: playing your recording…");
+        await playRecording();
+        if (loopAbort) break;
+
+        // 5) next sentence
+        if (idx < sentences.length - 1) {
+          idx++;
+          showSentence();
+          await sleep(250);
+        } else {
+          setStatus("loop finished (last sentence)");
+          break;
+        }
+      }
+    } catch (e) {
+      console.error(e);
+      setStatus("loop error (try Edge/Chrome and allow mic)");
+    } finally {
+      loopRunning = false;
+      btnLoopStop.disabled = true;
+      // re-enable normal controls
+      showSentence();
+      setStatus("ready");
+    }
+  }
+
+  btnLoop.addEventListener("click", () => {
+    if (!sentences.length) return;
+    if (loopRunning) return;
+    runLoop();
+  });
+
+  btnLoopStop.addEventListener("click", () => {
+    loopAbort = true;
+    // stop any active recording and speech
+    try { speechSynthesis.cancel(); } catch {}
+    try { stopRecording(); } catch {}
+    btnLoopStop.disabled = true;
+    setStatus("stopping loop…");
+  });
+
+  // ---------- Speech recognition (optional) ----------
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let rec = null;
+
+  if (!SpeechRecognition) {
+    transcriptEl.textContent = "Speech recognition not supported in this browser.";
+    btnListen.disabled = true;
+    btnListenStop.disabled = true;
+  } else {
+    rec = new SpeechRecognition();
+    rec.lang = "en-US";
+    rec.continuous = true;
+    rec.interimResults = true;
+
+    rec.onstart = () => {
+      setStatus("recognition listening…");
+      btnListen.disabled = true;
+      btnListenStop.disabled = false;
+    };
+
+    rec.onend = () => {
+      setStatus("ready");
+      btnListen.disabled = false;
+      btnListenStop.disabled = true;
+    };
+
+    rec.onresult = (event) => {
+      let finalText = "";
+      let interimText = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const t = event.results[i][0].transcript;
+        if (event.results[i].isFinal) finalText += t + " ";
+        else interimText += t;
+      }
+      transcriptEl.textContent = (finalText + interimText).trim();
+    };
+
+    rec.onerror = (e) => {
+      console.error(e);
+      setStatus("recognition error (check mic permissions)");
+    };
+
+    btnListen.addEventListener("click", () => {
+      transcriptEl.textContent = "";
+      rec.start();
+    });
+
+    btnListenStop.addEventListener("click", () => rec.stop());
+  }
+
+  // Start empty until user loads (but allow the default sample to be loaded easily)
+  showSentence();
+})();
+</script>
+</body>
+</html>

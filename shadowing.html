@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Shadowing Practice (TTS + Record)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 16px; line-height: 1.35; }
+    .card { border: 1px solid #ddd; border-radius: 12px; padding: 14px; max-width: 780px; }
+    textarea { width: 100%; min-height: 90px; padding: 10px; border-radius: 10px; border: 1px solid #ccc; font-size: 16px; }
+    button { padding: 10px 12px; border-radius: 10px; border: 1px solid #ccc; background: #f7f7f7; cursor: pointer; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+    .small { color: #555; font-size: 14px; }
+    .status { margin-top: 10px; font-weight: 600; }
+    .pill { display: inline-block; padding: 3px 8px; border-radius: 999px; border: 1px solid #ddd; font-size: 13px; margin-left: 6px;}
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2 style="margin:0 0 8px 0;">Shadowing Practice</h2>
+    <div class="small">
+      Works best in <b>Chrome/Edge</b>. You’ll be asked for microphone permission for recording.
+      <span class="pill">PC</span><span class="pill">Android</span><span class="pill">iOS (partial)</span>
+    </div>
+
+    <h3 style="margin:14px 0 8px 0;">1) Choose your sentence</h3>
+    <textarea id="text">
+When the sunlight strikes raindrops in the air, they act like a prism and form a rainbow.
+    </textarea>
+
+    <div class="row">
+      <button id="btnSpeak">🔊 Speak sentence</button>
+
+      <button id="btnRecord">⏺️ Record</button>
+      <button id="btnStop" disabled>⏹️ Stop</button>
+      <button id="btnPlay" disabled>▶️ Play my recording</button>
+      <button id="btnDownload" disabled>⬇️ Download recording</button>
+    </div>
+
+    <div class="row">
+      <label class="small">
+        Voice:
+        <select id="voiceSelect"></select>
+      </label>
+
+      <label class="small">
+        Rate:
+        <input id="rate" type="range" min="0.7" max="1.2" step="0.05" value="1.0" />
+        <span id="rateVal" class="mono">1.00</span>
+      </label>
+
+      <label class="small">
+        Pitch:
+        <input id="pitch" type="range" min="0.7" max="1.2" step="0.05" value="1.0" />
+        <span id="pitchVal" class="mono">1.00</span>
+      </label>
+    </div>
+
+    <div class="status" id="status">Status: ready</div>
+
+    <hr style="margin:14px 0;" />
+
+    <h3 style="margin:0 0 8px 0;">2) Optional: speech recognition transcript</h3>
+    <div class="small">
+      This is a rough guide (not a pronunciation “score”). Works mainly in Chrome/Edge.
+    </div>
+    <div class="row">
+      <button id="btnListen">🎙️ Start recognition</button>
+      <button id="btnListenStop" disabled>🛑 Stop recognition</button>
+    </div>
+    <div class="small" style="margin-top:8px;">Transcript:</div>
+    <div id="transcript" class="mono" style="border:1px solid #ddd;border-radius:10px;padding:10px;min-height:48px;"></div>
+  </div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+
+  const textEl = $("text");
+  const btnSpeak = $("btnSpeak");
+  const btnRecord = $("btnRecord");
+  const btnStop = $("btnStop");
+  const btnPlay = $("btnPlay");
+  const btnDownload = $("btnDownload");
+  const statusEl = $("status");
+
+  const voiceSelect = $("voiceSelect");
+  const rate = $("rate"), pitch = $("pitch");
+  const rateVal = $("rateVal"), pitchVal = $("pitchVal");
+
+  rate.addEventListener("input", () => rateVal.textContent = (+rate.value).toFixed(2));
+  pitch.addEventListener("input", () => pitchVal.textContent = (+pitch.value).toFixed(2));
+
+  // ---------- Text-to-speech ----------
+  function loadVoices() {
+    const voices = speechSynthesis.getVoices();
+    voiceSelect.innerHTML = "";
+    voices
+      .filter(v => v.lang && v.lang.toLowerCase().startsWith("en"))
+      .forEach((v, idx) => {
+        const opt = document.createElement("option");
+        opt.value = idx;
+        opt.textContent = `${v.name} (${v.lang})`;
+        voiceSelect.appendChild(opt);
+      });
+    if (voiceSelect.options.length === 0) {
+      const opt = document.createElement("option");
+      opt.value = -1;
+      opt.textContent = "No English voices found (TTS may still work)";
+      voiceSelect.appendChild(opt);
+    }
+  }
+  loadVoices();
+  speechSynthesis.onvoiceschanged = loadVoices;
+
+  btnSpeak.addEventListener("click", () => {
+    const txt = textEl.value.trim();
+    if (!txt) return;
+
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(txt);
+
+    const voices = speechSynthesis.getVoices().filter(v => v.lang.toLowerCase().startsWith("en"));
+    const idx = +voiceSelect.value;
+    if (voices.length && idx >= 0 && idx < voices.length) u.voice = voices[idx];
+
+    u.rate = +rate.value;
+    u.pitch = +pitch.value;
+
+    u.onstart = () => statusEl.textContent = "Status: speaking…";
+    u.onend = () => statusEl.textContent = "Status: ready";
+    u.onerror = () => statusEl.textContent = "Status: TTS error (try another browser/voice)";
+
+    speechSynthesis.speak(u);
+  });
+
+  // ---------- Recording ----------
+  let mediaRecorder = null;
+  let chunks = [];
+  let recordedBlob = null;
+  let recordedUrl = null;
+  let audio = new Audio();
+
+  async function startRecording() {
+    recordedBlob = null;
+    if (recordedUrl) URL.revokeObjectURL(recordedUrl);
+    recordedUrl = null;
+    btnPlay.disabled = true;
+    btnDownload.disabled = true;
+
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    // Use a broadly-supported mimeType when possible
+    const options = {};
+    if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) options.mimeType = "audio/webm;codecs=opus";
+    else if (MediaRecorder.isTypeSupported("audio/webm")) options.mimeType = "audio/webm";
+    else if (MediaRecorder.isTypeSupported("audio/mp4")) options.mimeType = "audio/mp4";
+
+    mediaRecorder = new MediaRecorder(stream, options);
+    chunks = [];
+
+    mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+    mediaRecorder.onstart = () => statusEl.textContent = "Status: recording…";
+    mediaRecorder.onstop = () => {
+      statusEl.textContent = "Status: recorded";
+      recordedBlob = new Blob(chunks, { type: mediaRecorder.mimeType || "audio/webm" });
+      recordedUrl = URL.createObjectURL(recordedBlob);
+      audio.src = recordedUrl;
+
+      btnPlay.disabled = false;
+      btnDownload.disabled = false;
+
+      // stop mic stream
+      stream.getTracks().forEach(t => t.stop());
+    };
+
+    mediaRecorder.start();
+  }
+
+  btnRecord.addEventListener("click", async () => {
+    try {
+      btnRecord.disabled = true;
+      btnStop.disabled = false;
+      await startRecording();
+    } catch (err) {
+      console.error(err);
+      statusEl.textContent = "Status: mic permission denied or not available";
+      btnRecord.disabled = false;
+      btnStop.disabled = true;
+    }
+  });
+
+  btnStop.addEventListener("click", () => {
+    if (mediaRecorder && mediaRecorder.state !== "inactive") {
+      mediaRecorder.stop();
+    }
+    btnStop.disabled = true;
+    btnRecord.disabled = false;
+  });
+
+  btnPlay.addEventListener("click", async () => {
+    if (!recordedUrl) return;
+    statusEl.textContent = "Status: playing your recording…";
+    audio.currentTime = 0;
+    await audio.play();
+  });
+
+  audio.addEventListener("ended", () => {
+    statusEl.textContent = "Status: ready";
+  });
+
+  btnDownload.addEventListener("click", () => {
+    if (!recordedBlob) return;
+    const a = document.createElement("a");
+    a.href = recordedUrl;
+    a.download = "shadowing_recording.webm";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  });
+
+  // ---------- Speech recognition (optional) ----------
+  const transcriptEl = $("transcript");
+  const btnListen = $("btnListen");
+  const btnListenStop = $("btnListenStop");
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let rec = null;
+
+  if (!SpeechRecognition) {
+    transcriptEl.textContent = "Speech recognition not supported in this browser.";
+    btnListen.disabled = true;
+    btnListenStop.disabled = true;
+  } else {
+    rec = new SpeechRecognition();
+    rec.lang = "en-US";
+    rec.continuous = true;
+    rec.interimResults = true;
+
+    rec.onstart = () => {
+      statusEl.textContent = "Status: recognition listening…";
+      btnListen.disabled = true;
+      btnListenStop.disabled = false;
+    };
+
+    rec.onend = () => {
+      statusEl.textContent = "Status: ready";
+      btnListen.disabled = false;
+      btnListenStop.disabled = true;
+    };
+
+    rec.onresult = (event) => {
+      let finalText = "";
+      let interimText = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const t = event.results[i][0].transcript;
+        if (event.results[i].isFinal) finalText += t + " ";
+        else interimText += t;
+      }
+      transcriptEl.textContent = (finalText + interimText).trim();
+    };
+
+    rec.onerror = (e) => {
+      console.error(e);
+      statusEl.textContent = "Status: recognition error (check mic permissions)";
+    };
+
+    btnListen.addEventListener("click", () => {
+      transcriptEl.textContent = "";
+      rec.start();
+    });
+
+    btnListenStop.addEventListener("click", () => rec.stop());
+  }
+})();
+</script>
+</body>
+</html>
